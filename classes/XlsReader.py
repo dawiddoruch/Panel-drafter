@@ -1,6 +1,6 @@
 import xlrd
-from classes.AcmPreset import AcmPreset
-from classes.AcmPanel import AcmPanel
+from classes.PanelPreset import PanelPreset
+from classes.Panel import Panel
 
 
 class XlsReader:
@@ -21,47 +21,66 @@ class XlsReader:
             print("There is only one sheet in the file: {}".format(self.__selected_sheet_name))
         else:
             self.__selected_sheet_name = self.__select_sheet(sheets)
-
         return True
 
-    # Method must be explicitly called with AcmPreset parameter
-    def convert_file(self, acm_preset: AcmPreset, output_path):
+    # Method must be explicitly called with PanelPreset parameter
+    def convert_file(self, panel_preset: PanelPreset, output_path):
         if self.__selected_sheet_name == "":
             return False
-        return self.__convert_sheet(acm_preset, output_path)
+        return self.__convert_sheet(panel_preset, output_path)
 
     # convert selected sheet to ACM panels drawings
-    def __convert_sheet(self, acm_preset: AcmPreset, output_path):
+    def __convert_sheet(self, panel_preset: PanelPreset, output_path):
         sheet = self.xlsx.sheet_by_name(self.__selected_sheet_name)
         column_name = 0
         column_width = 1
         column_height = 2
-        column_is_corner = 3
-        column_corner_width = 4
-        column_corner_type = 5
-        column_quantity = 11
+        column_tab_t = 3
+        column_tab_r = 4
+        column_tab_b = 5
+        column_tab_l = 6
+        column_quantity = 9     # Left panels in nest
+        column_angle = 15
+
+        priority = 1
+        error_rows_count = 0
+        error_rows_list = []
+        row_number = 0
 
         # iterate all rows in open sheet
         for row in range(1, sheet.nrows):
-            panel = AcmPanel(acm_preset)
+            panel = Panel(panel_preset)
+            row_number += 1
 
-            # try to read ACM data from XLS
+            # Try to read panel data from spreadsheet
             try:
                 panel.name = str(sheet.cell_value(row, column_name))
                 panel.width = float(sheet.cell_value(row, column_width))
                 panel.height = float(sheet.cell_value(row, column_height))
                 panel.quantity = int(sheet.cell_value(row, column_quantity))
-                if str(sheet.cell_value(row, column_is_corner)).lower() in ('yes', 'y', '1'):
-                    panel.is_corner = True
-                    panel.corner_width = float(sheet.cell_value(row, column_corner_width))
-                    if str(sheet.cell_value(row, column_corner_type)).lower() in ('v', 'b'):
-                        panel.corner_type = 'v'
-                    else:
-                        panel.corner_type = 'h'
-            except ValueError:
-                continue
+                panel.priority = priority
+                if str(sheet.cell_value(row, column_tab_t)).lower() != "":
+                    panel.tab_t = float(sheet.cell_value(row, column_tab_t))
+                if str(sheet.cell_value(row, column_tab_r)).lower() != "":
+                    panel.tab_r = float(sheet.cell_value(row, column_tab_r))
+                if str(sheet.cell_value(row, column_tab_b)).lower() != "":
+                    panel.tab_b = float(sheet.cell_value(row, column_tab_b))
+                if str(sheet.cell_value(row, column_tab_l)).lower() != "":
+                    panel.tab_l = float(sheet.cell_value(row, column_tab_l))
+                if str(sheet.cell_value(row, column_angle)).lower() != "":
+                    panel.angle = float(sheet.cell_value(row, column_angle))
+                priority += 1
+            except (ValueError, IndexError) as e:
+                if panel.name != "":
+                    error_rows_list.append(row_number)
 
-            panel.draft(output_path)
+            # Only draft if qtty is non-zero
+            if panel.quantity > 0:
+                panel.draft(output_path)
+
+        if len(error_rows_list) != 0:
+            print("Could not read values from rows:")
+            print(error_rows_count)
 
         return True
 

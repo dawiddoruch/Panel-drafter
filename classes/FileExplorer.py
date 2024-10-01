@@ -9,11 +9,11 @@ class FileExplorer:
     current_path_listing = []
     selected_file_path = ""
     selected_file_name = ""
-    valid_file_extensions = ['.xls']
+    valid_file_extensions = ['.xlsx']
 
     def __init__(self):
-        self.input_path = os.getcwd() + "\\input_xls\\"
-        self.output_path = os.getcwd() + "\\output_dxf\\"
+        self.input_path = os.path.dirname(__file__) + "\\..\\input_xls\\"
+        self.output_path = os.path.dirname(__file__) + "\\..\\output_dxf\\"
         self.current_path = ""
         return
 
@@ -31,15 +31,18 @@ class FileExplorer:
 
         for file in files:
             full_path = current_path + file
+            file_ext_pos = full_path.rfind(".")
+            if file_ext_pos == -1:
+                continue
             if os.path.isdir(full_path):
                 folders_list.append({'type': 'dir', 'name': file, 'path': full_path})
-            elif os.path.isfile(full_path) and full_path[-4:].lower() in self.valid_file_extensions:
+            elif os.path.isfile(full_path) and full_path[file_ext_pos:].lower() in self.valid_file_extensions:
                 files_list.append({'type': 'file', 'name': file, 'path': full_path})
 
         self.current_path_listing = folders_list + files_list
 
     # Allows user to select file from stored path listing
-    def select_file(self, current_path="", previous_path=()):
+    def select_file(self, current_path="", previous_path=(), debug_default_file=-1):
         if current_path == "":
             current_path = self.input_path
 
@@ -65,15 +68,25 @@ class FileExplorer:
         for i in selection_range:
             file = self.current_path_listing[i]
             index = i + 1
+            is_last = False
+            if index == list_length:
+                is_last = True
             valid_options.append(str(index))
-            print("{:d}. {:s}".format(index, file['name']))
+
+            tree = '/'
+            if file['type'] == 'file':
+                tree = ' '
+
+            print("{:2d}. {}{:s}".format(index, tree, file['name']))
 
         # add option to terminate selection
         print("E. Exit\n")
         valid_options.append('e')
 
-        # get user input and make sure it's a valid one
-        user_selection = self.__make_selection("Select file to convert...", valid_options)
+        user_selection = debug_default_file
+        if debug_default_file == -1:
+            # get user input and make sure it's a valid one
+            user_selection = self.__make_selection("Select file to convert...", valid_options)
 
         # if user choose to terminate
         if user_selection == 'e':
@@ -113,7 +126,7 @@ class FileExplorer:
     def __set_output_path(self):
         pos = self.selected_file_name.rfind('.')
         name = self.selected_file_name[:pos]
-        self.output_path = self.output_path + "{} {}\\".format(name, datetime.date.today())
+        self.output_path = self.output_path + "{} {}\\".format(datetime.date.today(), name)
 
         if not os.path.exists(self.output_path):
             os.mkdir(self.output_path)
